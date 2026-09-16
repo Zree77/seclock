@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: seclock
+  labels:
+    app: seclock
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: seclock
+  template:
+    metadata:
+      labels:
+        app: seclock
+    spec:
+      containers:
+        - name: seclock
+          image: 658469473117.dkr.ecr.ap-south-1.amazonaws.com/seclock:latest
+          ports:
+            - containerPort: 8080
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"

@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Seclock — Legally-Aware Digital Inheritance & Emergency Access Vault</title>
+  <meta name="description" content="Seclock: A Legally-Aware, Offline-First Digital Inheritance and Emergency Access Vault for India (KTU Final Year Project Proposal).">
+  <link rel="stylesheet" href="/static/css/styles.css">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+
+  <!-- Navbar -->
+  <header class="navbar">
+    <div class="brand">
+      <div class="brand-icon">
+        <i data-lucide="shield-lock"></i>
+      </div>
+      <div>
+        <span>SECLOCK</span>
+        <div style="font-size: 0.65rem; font-weight: 500; letter-spacing: 0.1em; color: var(--primary-cyan); font-family: var(--font-body);">DIGITAL INHERITANCE VAULT</div>
+      </div>
+    </div>
+
+    <div class="nav-actions">
+      <!-- Status Pill -->
+      <div id="nav-liveness-pill" class="status-pill active">
+        <span class="status-dot"></span>
+        <span id="nav-liveness-text">VAULT ACTIVE (30 Days Left)</span>
+      </div>
+
+      <!-- Vernacular Selector -->
+      <div class="lang-selector">
+        <button class="lang-btn active" onclick="setLanguage('en')">English</button>
+        <button class="lang-btn" onclick="setLanguage('ml')">മലയാളം</button>
+        <button class="lang-btn" onclick="setLanguage('hi')">हिंदी</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="container">
+
+    <!-- Navigation Tabs -->
+    <nav class="tabs-header">
+      <button class="tab-btn" onclick="switchTab('tab-verify')">
+        <i data-lucide="user-check"></i> <span data-i18n="tab_verify">0. Identity Verification</span>
+      </button>
+      <button class="tab-btn active" onclick="switchTab('tab-setup')">
+        <i data-lucide="key-round"></i> <span data-i18n="tab_setup">1. Vault Setup & Cryptography</span>
+      </button>
+      <button class="tab-btn" onclick="switchTab('tab-liveness')">
+        <i data-lucide="activity"></i> <span data-i18n="tab_liveness">2. Multi-Channel Liveness</span>
+      </button>
+      <button class="tab-btn" onclick="switchTab('tab-ocr')">
+        <i data-lucide="file-check-2"></i> <span data-i18n="tab_ocr">3. Legal Document OCR Proof</span>
+      </button>
+      <button class="tab-btn" onclick="switchTab('tab-wizard')">
+        <i data-lucide="sparkles"></i> <span data-i18n="tab_wizard">4. Vernacular Nominee Recovery</span>
+      </button>
+      <button class="tab-btn" onclick="switchTab('tab-staged')">
+        <i data-lucide="layers"></i> <span data-i18n="tab_staged">5. Staged Disclosure Tiers</span>
+      </button>
+      <button class="tab-btn" onclick="switchTab('tab-ledger')">
+        <i data-lucide="binary"></i> <span data-i18n="tab_ledger">6. Tamper-Evident Audit Ledger</span>
+      </button>
+      <button class="tab-btn" onclick="switchTab('tab-security')">
+        <i data-lucide="shield-alert"></i> <span data-i18n="tab_security">7. Security & Owner Veto</span>
+      </button>
+    </nav>
+
+    <!-- TAB 0: Identity Verification -->
+    <section id="tab-verify" class="tab-panel">
+      <div class="glass-card">
+        <h2 class="card-title">
+          <i data-lucide="user-check" style="color: var(--primary-cyan);"></i>
+          Cryptographic Identity Verification
+        </h2>
+        <p class="card-subtitle">
+          Authenticate your identity using your allocated cryptographic credentials before accessing the vault.
+          Account owners verify via their <strong>secret passphrase</strong>;
+          nominees verify using their <strong>individual Shamir key share</strong>.
+        </p>
+
+        <!-- Verification Mode Toggle -->
+        <div style="display: flex; gap: 0.75rem; margin-bottom: 1.75rem;">
+          <button id="toggle-owner-mode" class="btn btn-primary" style="flex: 1;" onclick="setVerifyMode('owner')">
+            <i data-lucide="shield-check"></i> I am the Account Owner
+          </button>
+          <button id="toggle-nominee-mode" class="btn btn-secondary" style="flex: 1;" onclick="setVerifyMode('nominee')">
+            <i data-lucide="users"></i> I am a Registered Nominee
+          </button>
+        </div>
+
+        <!-- Owner Verification Panel -->
+        <div id="verify-owner-panel">
+          <div class="grid-2">
+            <!-- Left: Auth Form -->
+            <div class="glass-card" style="border-color: var(--primary-blue); margin-bottom: 0;">
+              <h3 style="color: var(--primary-cyan); margin-bottom: 0.25rem;">
+                <i data-lucide="lock-keyhole"></i> Owner Authentication
+              </h3>
+              <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem;">
+                Enter your vault passphrase. It is hashed using SHA-256 with a unique salt and verified against the stored digest — your plaintext passphrase is never stored.
+              </p>
+
+              <!-- Key metadata display -->
+              <div id="owner-key-preview" style="background: rgba(7,9,19,0.7); border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 1rem; margin-bottom: 1.25rem; font-family: var(--font-mono); font-size: 0.8rem;">
+                <div style="color: var(--text-muted); margin-bottom: 0.5rem;">Loading cryptographic key metadata...</div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Secret Vault Passphrase</label>
+                <div style="position: relative;">
+                  <input type="password" id="owner-passphrase-input" class="form-input" placeholder="Enter your vault passphrase..." style="padding-right: 3rem;">
+                  <button type="button" onclick="togglePassphraseVisibility()" style="position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: var(--text-muted);">
+                    <i data-lucide="eye" id="pass-eye-icon"></i>
+                  </button>
+                </div>
+                <div style="font-size: 0.78rem; color: var(--accent-emerald); margin-top: 0.4rem;">Demo passphrase: <code style="color: var(--primary-cyan); background: rgba(0,242,254,0.1); padding: 2px 6px; border-radius: 4px;">SECLOCK_OWNER_DEFAULT_PASS</code></div>
+              </div>
+
+              <button class="btn btn-primary" style="width: 100%;" onclick="verifyOwnerIdentity()">
+                <i data-lucide="fingerprint"></i> Authenticate as Owner
+              </button>
+            </div>
+
+            <!-- Right: Result Card -->
+            <div class="glass-card" style="margin-bottom: 0; display: flex; flex-direction: column; justify-content: center;">
+              <div id="owner-verify-result" style="text-align: center; color: var(--text-muted);">
+                <i data-lucide="shield" style="width: 64px; height: 64px; opacity: 0.3; margin-bottom: 1rem;"></i>
+                <p>Owner identity verification result will appear here after authentication.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Nominee Verification Panel -->
+        <div id="verify-nominee-panel" style="display: none;">
+          <div class="grid-2">
+            <!-- Left: Auth Form -->
+            <div class="glass-card" style="border-color: var(--accent-purple); margin-bottom: 0;">
+              <h3 style="color: var(--accent-purple); margin-bottom: 0.25rem;">
+                <i data-lucide="key-square"></i> Nominee Authentication
+              </h3>
+              <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem;">
+                Enter your registered nominee name and the Shamir key share you were allocated. Your share is verified against a cryptographic public commitment hash — the actual share is never stored server-side after vault setup.
+              </p>
+
+              <div class="form-group">
+                <label class="form-label">Your Registered Nominee Name</label>
+                <select id="nominee-verify-select" class="form-select"></select>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Your Allocated Shamir Key Share (256-bit Hex)</label>
+                <textarea id="nominee-share-input" class="form-textarea" rows="3" placeholder="Paste your full 64-character hexadecimal Shamir key share here..."></textarea>
+                <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 0.35rem;">This is the key share you received during vault setup. It starts with a long hex string.</div>
+              </div>
+
+              <button class="btn btn-primary" style="width: 100%; background: linear-gradient(135deg, var(--accent-purple), #6d28d9);" onclick="verifyNomineeIdentity()">
+                <i data-lucide="key"></i> Authenticate as Nominee
+              </button>
+            </div>
+
+            <!-- Right: Nominee Key Cards -->
+            <div class="glass-card" style="margin-bottom: 0;">
+              <h4 style="color: var(--accent-purple); margin-bottom: 0.75rem;"><i data-lucide="users"></i> Registered Nominees & Allocated Shares</h4>
+              <div id="nominees-share-roster" style="display: flex; flex-direction: column; gap: 0.6rem;"></div>
+              <div id="nominee-verify-result" style="margin-top: 1rem;"></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- TAB 1: Vault Setup & Cryptography -->
+    <section id="tab-setup" class="tab-panel active">
+      <div class="glass-card">
+        <h2 class="card-title">
+          <i data-lucide="lock" style="color: var(--primary-cyan);"></i>
+          <span data-i18n="setup_title">User Onboarding & Threshold Key Generation</span>
+        </h2>
+        <p class="card-subtitle" data-i18n="setup_subtitle">
+          Client-side AES-256 vault encryption combined with Shamir's Secret Sharing (3-of-5 threshold). No single nominee or server holds the master key.
+        </p>
+
+        <form id="setup-form" onsubmit="handleVaultSetup(event)">
+          <div class="grid-2">
+            <!-- Owner Info -->
+            <div>
+              <h4 style="color: var(--primary-cyan); margin-bottom: 1rem;" data-i18n="owner_header">Account Owner Profile</h4>
+              <div class="form-group">
+                <label class="form-label">Full Legal Name</label>
+                <input type="text" id="owner-name" class="form-input" value="K. V. Ramachandran Nair" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Phone Number (SMS / IVR check-in)</label>
+                <input type="text" id="owner-phone" class="form-input" value="+91 98470 12345" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Check-in Frequency</label>
+                <select id="checkin-days" class="form-select">
+                  <option value="30">Every 30 Days (Recommended)</option>
+                  <option value="60">Every 60 Days</option>
+                  <option value="90">Every 90 Days</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Nominees -->
+            <div>
+              <h4 style="color: var(--accent-purple); margin-bottom: 1rem;" data-i18n="nominee_header">Nominee Share Holders (3-of-5 Threshold)</h4>
+              <div id="nominees-container">
+                <div class="form-group grid-2" style="margin-bottom: 0.5rem;">
+                  <input type="text" class="form-input nominee-name" value="Priya Ramachandran" placeholder="Nominee 1 Name" required>
+                  <input type="text" class="form-input nominee-phone" value="+91 98471 99881" placeholder="Phone">
+                </div>
+                <div class="form-group grid-2" style="margin-bottom: 0.5rem;">
+                  <input type="text" class="form-input nominee-name" value="Anil Nair" placeholder="Nominee 2 Name" required>
+                  <input type="text" class="form-input nominee-phone" value="+91 94472 44332" placeholder="Phone">
+                </div>
+                <div class="form-group grid-2" style="margin-bottom: 0.5rem;">
+                  <input type="text" class="form-input nominee-name" value="Dr. Radhika Nair" placeholder="Nominee 3 Name" required>
+                  <input type="text" class="form-input nominee-phone" value="+91 98950 11223" placeholder="Phone">
+                </div>
+                <div class="form-group grid-2" style="margin-bottom: 0.5rem;">
+                  <input type="text" class="form-input nominee-name" value="Adv. Suresh Kumar" placeholder="Nominee 4 Name" required>
+                  <input type="text" class="form-input nominee-phone" value="+91 98460 77889" placeholder="Phone">
+                </div>
+                <div class="form-group grid-2" style="margin-bottom: 0.5rem;">
+                  <input type="text" class="form-input nominee-name" value="Vijayalakshmi Amma" placeholder="Nominee 5 Name" required>
+                  <input type="text" class="form-input nominee-phone" value="+91 94461 55667" placeholder="Phone">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Digital Assets Input -->
+          <div style="margin-top: 1.5rem;">
+            <h4 style="color: var(--accent-emerald); margin-bottom: 1rem;" data-i18n="assets_header">Pre-Configured Asset Tiers</h4>
+            <div class="grid-3">
+              <div class="glass-card" style="margin-bottom: 0; padding: 1.25rem;">
+                <h5 style="color: var(--primary-cyan); margin-bottom: 0.5rem;">Tier 1: Urgent Financial</h5>
+                <textarea id="tier1-input" class="form-textarea" rows="4">[{"type": "Bank", "name": "State Bank of India", "acc": "30489102934", "ifsc": "SBIN0000860", "balance": "INR 6,50,000"}, {"type": "Insurance", "name": "LIC Jeevan Anand Policy", "policy_no": "784910293"}]</textarea>
+              </div>
+
+              <div class="glass-card" style="margin-bottom: 0; padding: 1.25rem;">
+                <h5 style="color: var(--accent-purple); margin-bottom: 0.5rem;">Tier 2: Credentials & Cloud</h5>
+                <textarea id="tier2-input" class="form-textarea" rows="4">[{"type": "Email", "provider": "Gmail", "user": "ramachandran.kv@gmail.com"}, {"type": "Property", "title": "Kozhikode Land Settlement Deed #1084/2012"}]</textarea>
+              </div>
+
+              <div class="glass-card" style="margin-bottom: 0; padding: 1.25rem;">
+                <h5 style="color: var(--accent-amber); margin-bottom: 0.5rem;">Tier 3: Memory Vault</h5>
+                <textarea id="tier3-input" class="form-textarea" rows="4">[{"type": "Personal Notes", "content": "Family ancestral land details and private memories for Priya & Anil."}]</textarea>
+              </div>
+            </div>
+          </div>
+
+          <div style="margin-top: 1.5rem; text-align: right;">
+            <button type="submit" class="btn btn-primary">
+              <i data-lucide="shield-check"></i> <span data-i18n="btn_encrypt_setup">Encrypt Vault & Generate 5 Shamir Shares</span>
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Generated Key Shares Display -->
+      <div id="generated-shares-box" class="glass-card" style="display: none;">
+        <h3 class="card-title" style="color: var(--accent-emerald);">
+          <i data-lucide="key"></i> Shamir Secret Sharing Master Key Shares Generated (3-of-5)
+        </h3>
+        <p class="card-subtitle">Each nominee receives one unique key share. Reconstructing master vault access requires any 3 of these 5 shares.</p>
+        <div id="shares-list-grid" class="grid-2"></div>
+      </div>
+    </section>
+
+    <!-- TAB 2: Multi-Channel Liveness -->
+    <section id="tab-liveness" class="tab-panel">
+      <div class="glass-card">
+        <h2 class="card-title">
+          <i data-lucide="phone-call" style="color: var(--primary-cyan);"></i>
+          <span data-i18n="liveness_title">Multi-Channel Liveness Verification & Escalation Ladder</span>
+        </h2>
+        <p class="card-subtitle" data-i18n="liveness_subtitle">
+          Prevents false triggers due to loss of internet or smartphones. Check-ins escalate through Mobile App -> SMS Reply -> IVR Automated Voice Call.
+        </p>
+
+        <div class="grid-2" style="margin-bottom: 1.5rem;">
+          <!-- Channel 1: App Check-in -->
+          <div class="glass-card" style="margin-bottom: 0;">
+            <h4 style="color: var(--primary-cyan); margin-bottom: 0.75rem;"><i data-lucide="smartphone"></i> 1. Mobile App Check-in</h4>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">One-click liveness confirmation via push notification or app button.</p>
+            <button class="btn btn-primary btn-sm" style="width: 100%;" onclick="simulateCheckIn('App', 'APP_BIOMETRIC_TOUCH')">
+              <i data-lucide="fingerprint"></i> Send App Check-in
+            </button>
+          </div>
+
+          <!-- Channel 2: SMS Simulator -->
+          <div class="glass-card" style="margin-bottom: 0;">
+            <h4 style="color: var(--accent-purple); margin-bottom: 0.75rem;"><i data-lucide="message-square"></i> 2. SMS Reply Check-in</h4>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">Works on any basic feature phone via SMS reply: <code>YES 4829</code>.</p>
+            <button class="btn btn-secondary btn-sm" style="width: 100%;" onclick="openSMSSimulator()">
+              <i data-lucide="smartphone"></i> Launch SMS Simulator
+            </button>
+          </div>
+
+          <!-- Channel 3: IVR Voice Call -->
+          <div class="glass-card" style="margin-bottom: 0;">
+            <h4 style="color: var(--accent-amber); margin-bottom: 0.75rem;"><i data-lucide="phone"></i> 3. IVR Voice Call</h4>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">Automated telephone call with voice prompt and DTMF keypad press ('1').</p>
+            <button class="btn btn-secondary btn-sm" style="width: 100%;" onclick="openIVRSimulator()">
+              <i data-lucide="phone-call"></i> Launch IVR Dialer Sim
+            </button>
+          </div>
+
+          <!-- Channel 4: Life Certificate / Jeevan Pramaan Upload -->
+          <div class="glass-card" style="margin-bottom: 0; border-color: var(--accent-emerald);">
+            <h4 style="color: var(--accent-emerald); margin-bottom: 0.75rem;"><i data-lucide="award"></i> 4. Upload Life Certificate (Jeevan Pramaan)</h4>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">Upload an official Digital Life Certificate or Aadhaar Jeevan Pramaan to confirm you are alive and reset liveness.</p>
+            <button class="btn btn-primary btn-sm" style="width: 100%; background: linear-gradient(135deg, #10b981, #059669);" onclick="switchTab('tab-ocr'); loadSampleLifeCertificate();">
+              <i data-lucide="upload-cloud"></i> Upload & Verify Life Certificate
+            </button>
+          </div>
+        </div>
+
+
+        <!-- Simulation Control Bar -->
+        <div style="margin-top: 1.5rem; background: rgba(7, 9, 19, 0.6); padding: 1.25rem; border-radius: var(--radius-md); display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <span style="font-size: 0.9rem; font-weight: 600; color: var(--text-muted);">Liveness State Controls:</span>
+          </div>
+          <div style="display: flex; gap: 1rem;">
+            <button class="btn btn-secondary btn-sm" onclick="simulateCheckIn('App', 'MANUAL_RESET')">
+              <i data-lucide="refresh-cw"></i> Reset Check-in Timer (Active)
+            </button>
+            <button class="btn btn-danger btn-sm" onclick="simulateMissedCycle()">
+              <i data-lucide="clock-alert"></i> Simulate Missed Cycle (Trigger Liveness Expired)
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Interactive SMS & IVR Phone Frame Modals -->
+      <div id="simulators-display-grid" class="grid-2" style="display: none; margin-top: 1.5rem;">
+        <!-- SMS Frame -->
+        <div id="sms-phone-container" class="phone-frame">
+          <div class="phone-notch"></div>
+          <div class="phone-screen">
+            <div style="text-align: center; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.5rem; margin-bottom: 0.5rem;">
+              <strong style="color: var(--primary-cyan);">SMS — SECLOCK REGIONAL</strong>
+              <div style="font-size: 0.7rem; color: var(--text-muted);">+91 800-SECLOCK</div>
+            </div>
+            <div id="sms-chat-box" class="sms-chat-box">
+              <div class="sms-bubble incoming">
+                [SECLOCK LIVENESS CHECK]<br>
+                Dear K. V. Ramachandran, reply YES 4829 to confirm you are active.
+              </div>
+            </div>
+            <div style="margin-top: 0.5rem; display: flex; gap: 0.4rem;">
+              <input type="text" id="sms-input-field" class="form-input" style="font-size: 0.8rem; padding: 0.4rem;" value="YES 4829">
+              <button class="btn btn-primary btn-sm" onclick="sendSMSResponse()"><i data-lucide="send"></i></button>
+            </div>
+          </div>
+        </div>
+
+        <!-- IVR Frame -->
+        <div id="ivr-phone-container" class="phone-frame">
+          <div class="phone-notch"></div>
+          <div class="phone-screen" style="text-align: center;">
+            <div style="margin-top: 1rem;">
+              <i data-lucide="phone-incoming" style="width: 40px; height: 40px; color: var(--accent-emerald); animation: pulse-dot 1.5s infinite;"></i>
+              <h4 style="color: #fff; margin-top: 0.5rem;">Automated IVR Call</h4>
+              <div id="ivr-voice-status" style="font-size: 0.8rem; color: var(--primary-cyan); margin: 0.5rem 0;">"Namaskaram Ramachandran Sir. Press 1 to confirm you are safe."</div>
+            </div>
+            <div class="ivr-dialer">
+              <button class="ivr-key" onclick="pressIVRKey('1')">1</button>
+              <button class="ivr-key" onclick="pressIVRKey('2')">2</button>
+              <button class="ivr-key" onclick="pressIVRKey('3')">3</button>
+              <button class="ivr-key" onclick="pressIVRKey('4')">4</button>
+              <button class="ivr-key" onclick="pressIVRKey('5')">5</button>
+              <button class="ivr-key" onclick="pressIVRKey('6')">6</button>
+              <button class="ivr-key" onclick="pressIVRKey('7')">7</button>
+              <button class="ivr-key" onclick="pressIVRKey('8')">8</button>
+              <button class="ivr-key" onclick="pressIVRKey('9')">9</button>
+              <button class="ivr-key" onclick="pressIVRKey('*')">*</button>
+              <button class="ivr-key" onclick="pressIVRKey('0')">0</button>
+              <button class="ivr-key" onclick="pressIVRKey('#')">#</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: Legal Document OCR Verification -->
+    <section id="tab-ocr" class="tab-panel">
+      <div class="glass-card">
+        <h2 class="card-title">
+          <i data-lucide="file-search" style="color: var(--primary-cyan);"></i>
+          <span data-i18n="ocr_title">Legal Document Verification Module (India Specific)</span>
+        </h2>
+        <p class="card-subtitle" data-i18n="ocr_subtitle">
+          Vault release requires documentary legal proof (Death Certificate / Legal Heirship Certificate) verified against Indian government certificate structures — preventing false or silent triggers.
+        </p>
+
+        <div class="grid-2">
+          <!-- Upload / Sample Selector -->
+          <div>
+            <h4 style="color: var(--primary-cyan); margin-bottom: 0.75rem;">Submit Certificate Document</h4>
+            <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem;">
+              <button type="button" class="btn btn-secondary btn-sm" style="flex: 1;" onclick="loadSampleCertificate()">
+                <i data-lucide="file-text"></i> Load Death Certificate (Form 6)
+              </button>
+              <button type="button" class="btn btn-primary btn-sm" style="flex: 1; background: linear-gradient(135deg, #10b981, #059669);" onclick="loadSampleLifeCertificate()">
+                <i data-lucide="award"></i> Load Life Certificate (Jeevan Pramaan)
+              </button>
+            </div>
+
+            <!-- Custom File Upload Dropzone with native File Picker -->
+            <input type="file" id="cert-file-picker" accept="image/*,.txt,.pdf,.json" style="display: none;" onchange="handleCertificateFileUpload(event)">
+            
+            <div class="dropzone" id="cert-dropzone" onclick="document.getElementById('cert-file-picker').click()">
+              <i data-lucide="upload-cloud" style="width: 48px; height: 48px; color: var(--primary-cyan); margin-bottom: 0.5rem;"></i>
+              <div style="font-weight: 600; color: #fff;" id="dropzone-title">Click or Drag & Drop Any Certificate File</div>
+              <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem;" id="dropzone-subtitle">Select an Image (PNG/JPG), PDF, or Text certificate file from your computer</div>
+            </div>
+
+            <div class="form-group" style="margin-top: 1.25rem;">
+              <label class="form-label">Extracted OCR Document Text Payload</label>
+              <textarea id="ocr-text-input" class="form-textarea" rows="7" placeholder="Certificate OCR text will load here automatically upon upload or sample click..."></textarea>
+            </div>
+
+            <div style="display: flex; gap: 0.75rem;">
+              <button class="btn btn-primary" id="btn-verify-nominee" style="flex: 1;" onclick="runOCRVerification()">
+                <i data-lucide="cpu"></i> Verify Legal Proof (Nominee Claim)
+              </button>
+              <button class="btn btn-primary" id="btn-verify-owner" style="flex: 1; background: linear-gradient(135deg, #10b981, #059669);" onclick="verifyOwnerLifeCertificate()">
+                <i data-lucide="shield-check"></i> Verify Life Status (Owner Alive)
+              </button>
+            </div>
+          </div>
+
+
+
+          <!-- Document Inspection & Result Box -->
+          <div>
+            <h4 style="color: var(--accent-purple); margin-bottom: 0.75rem;">Document Visual Inspection</h4>
+            <div class="ocr-preview-box">
+              <div class="ocr-scan-line"></div>
+              <img id="cert-preview-img" src="/sample_certificates/sample_death_certificate.png" alt="Sample Certificate" style="width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--glass-border);">
+            </div>
+
+            <!-- OCR Verification Results Output -->
+            <div id="ocr-results-box" style="margin-top: 1rem; display: none;"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 4: Guided Vernacular Recovery Wizard -->
+    <section id="tab-wizard" class="tab-panel">
+      <div class="glass-card">
+        <h2 class="card-title">
+          <i data-lucide="sparkles" style="color: var(--primary-cyan);"></i>
+          <span data-i18n="wizard_title">Guided Vernacular Nominee Recovery Wizard</span>
+        </h2>
+        <p class="card-subtitle" data-i18n="wizard_subtitle">
+          Designed for non-technical, grieving family members. Guides step-by-step in Malayalam, Hindi, or English.
+        </p>
+
+        <!-- Wizard Progress Bar -->
+        <div style="display: flex; justify-content: space-between; position: relative; margin-bottom: 2rem;">
+          <div style="flex: 1; text-align: center;">
+            <div id="wiz-step-1-bubble" style="width: 36px; height: 36px; border-radius: 50%; background: var(--primary-cyan); color: #000; font-weight: 700; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.4rem auto;">1</div>
+            <div style="font-size: 0.8rem; font-weight: 600;" data-i18n="wiz_step1_label">Identity & Doc Proof</div>
+          </div>
+          <div style="flex: 1; text-align: center;">
+            <div id="wiz-step-2-bubble" style="width: 36px; height: 36px; border-radius: 50%; background: rgba(30, 41, 59, 0.8); color: #fff; font-weight: 700; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.4rem auto;">2</div>
+            <div style="font-size: 0.8rem; font-weight: 600;" data-i18n="wiz_step2_label">Key Share Entry</div>
+          </div>
+          <div style="flex: 1; text-align: center;">
+            <div id="wiz-step-3-bubble" style="width: 36px; height: 36px; border-radius: 50%; background: rgba(30, 41, 59, 0.8); color: #fff; font-weight: 700; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.4rem auto;">3</div>
+            <div style="font-size: 0.8rem; font-weight: 600;" data-i18n="wiz_step3_label">Threshold Reconstruction</div>
+          </div>
+        </div>
+
+        <!-- Step 1 Content -->
+        <div id="wiz-step-1" class="glass-card" style="background: rgba(7, 9, 19, 0.6);">
+          <h3 style="color: var(--primary-cyan); margin-bottom: 0.5rem;" data-i18n="wiz_s1_title">Step 1: Confirm Nominee Identity & Legal Proof</h3>
+          <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1rem;" data-i18n="wiz_s1_desc">Select your name from the registered nominee list and verify that the legal document has been approved.</p>
+
+          <div class="form-group">
+            <label class="form-label">Select Your Nominee Name</label>
+            <select id="wiz-nominee-select" class="form-select"></select>
+          </div>
+
+          <div id="wiz-doc-check-status" class="alert-box" style="background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.3); color: #6ee7b7;">
+            <i data-lucide="check-circle-2"></i>
+            <div>
+              <strong>Legal Document Verification Status: VERIFIED</strong><br>
+              <span style="font-size: 0.825rem;">Indian Death Certificate #KL-D-2025-098412 verified by OCR rule engine.</span>
+            </div>
+          </div>
+
+          <button class="btn btn-primary" onclick="goToWizStep(2)">Proceed to Step 2: Key Share Entry &rarr;</button>
+        </div>
+
+        <!-- Step 2 Content -->
+        <div id="wiz-step-2" class="glass-card" style="background: rgba(7, 9, 19, 0.6); display: none;">
+          <h3 style="color: var(--accent-purple); margin-bottom: 0.5rem;" data-i18n="wiz_s2_title">Step 2: Enter Shamir Nominee Key Shares</h3>
+          <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1rem;" data-i18n="wiz_s2_desc">Reconstruction requires at least 3 nominee key shares. Submit nominee shares below:</p>
+
+          <div id="wiz-shares-input-list" class="grid-1" style="display: flex; flex-direction: column; gap: 0.75rem;"></div>
+
+          <div style="margin-top: 1.5rem; display: flex; gap: 1rem;">
+            <button class="btn btn-secondary" onclick="goToWizStep(1)">&larr; Back</button>
+            <button class="btn btn-primary" onclick="submitNomineeSharesWizard()">Reconstruct Master Key (3-of-5 Threshold) &rarr;</button>
+          </div>
+        </div>
+
+        <!-- Step 3 Content -->
+        <div id="wiz-step-3" class="glass-card" style="background: rgba(7, 9, 19, 0.6); display: none;">
+          <h3 style="color: var(--accent-emerald); margin-bottom: 0.5rem;" data-i18n="wiz_s3_title">Step 3: Vault Decrypted & Staged Release Ready</h3>
+          <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1rem;">The master key has been reconstructed using Lagrange Polynomial Interpolation over GF(2^256). Assets are decrypted in priority tiers.</p>
+          
+          <div id="wiz-unlocked-data-box"></div>
+          
+          <div style="margin-top: 1.5rem;">
+            <button class="btn btn-secondary" onclick="window.print()"><i data-lucide="printer"></i> Download Printable Legal Record (PDF)</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 5: Staged Disclosure Tiers -->
+    <section id="tab-staged" class="tab-panel">
+      <div class="glass-card">
+        <h2 class="card-title">
+          <i data-lucide="layers" style="color: var(--primary-cyan);"></i>
+          <span data-i18n="staged_title">Staged / Partial Disclosure Management</span>
+        </h2>
+        <p class="card-subtitle" data-i18n="staged_subtitle">
+          Prevents an all-or-nothing data dump. Releasing urgent bank & insurance details first, followed by credentials and personal memory vaults.
+        </p>
+
+        <!-- Tier 1 Card -->
+        <div class="tier-card unlocked" id="tier-1-card">
+          <div class="tier-header">
+            <span style="color: var(--primary-cyan);"><i data-lucide="building-2"></i> Tier 1: Urgent Financial & Insurance Assets</span>
+            <span class="status-pill active" style="font-size: 0.75rem;">PRIORITY RELEASE 1</span>
+          </div>
+          <div id="tier-1-content" style="margin-top: 0.75rem; font-size: 0.9rem; color: var(--text-muted);">
+            (Vault content will display here once 3 nominee key shares + legal document verification are complete.)
+          </div>
+        </div>
+
+        <!-- Tier 2 Card -->
+        <div class="tier-card" id="tier-2-card">
+          <div class="tier-header">
+            <span style="color: var(--accent-purple);"><i data-lucide="key"></i> Tier 2: Digital Credentials & Property Titles</span>
+            <span class="status-pill warning" style="font-size: 0.75rem;">STAGE 2 (+48 HOURS)</span>
+          </div>
+          <div id="tier-2-content" style="margin-top: 0.75rem; font-size: 0.9rem; color: var(--text-muted);">
+            (Protected under staged release timer.)
+          </div>
+        </div>
+
+        <!-- Tier 3 Card -->
+        <div class="tier-card" id="tier-3-card">
+          <div class="tier-header">
+            <span style="color: var(--accent-amber);"><i data-lucide="heart"></i> Tier 3: Personal Memory Vault & Private Notes</span>
+            <span class="status-pill expired" style="font-size: 0.75rem;">STAGE 3 (NOMINEE SPECIFIC)</span>
+          </div>
+          <div id="tier-3-content" style="margin-top: 0.75rem; font-size: 0.9rem; color: var(--text-muted);">
+            (Personal memories reserved for family nominees.)
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 6: Tamper-Evident Audit Ledger -->
+    <section id="tab-ledger" class="tab-panel">
+      <div class="glass-card">
+        <h2 class="card-title">
+          <i data-lucide="binary" style="color: var(--primary-cyan);"></i>
+          <span data-i18n="ledger_title">Tamper-Evident SHA-256 Hash-Chained Audit Ledger</span>
+        </h2>
+        <p class="card-subtitle" data-i18n="ledger_subtitle">
+          Every check-in, missed cycle, document submission, and share submission is cryptographically hash-chained for legal defensibility in probate court.
+        </p>
+
+        <div style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; background: rgba(7, 9, 19, 0.6); padding: 1rem 1.5rem; border-radius: var(--radius-md);">
+          <div>
+            <strong style="color: var(--primary-cyan);">Chain Integrity Status:</strong>
+            <span id="ledger-integrity-status" class="status-pill active" style="margin-left: 0.5rem;">CRYPTOGRAPHICALLY VERIFIED</span>
+          </div>
+          <div style="display: flex; gap: 0.75rem;">
+            <button class="btn btn-secondary btn-sm" onclick="loadAuditLedger()"><i data-lucide="refresh-cw"></i> Refresh Ledger</button>
+            <button class="btn btn-danger btn-sm" onclick="simulateTamper()"><i data-lucide="bug"></i> Simulate Block Tamper (Test Security)</button>
+          </div>
+        </div>
+
+        <div id="ledger-timeline-container" class="ledger-timeline"></div>
+      </div>
+    </section>
+
+    <!-- TAB 7: Security & Owner Veto -->
+    <section id="tab-security" class="tab-panel">
+      <div class="glass-card">
+        <h2 class="card-title">
+          <i data-lucide="shield-alert" style="color: var(--accent-rose);"></i>
+          <span data-i18n="security_title">Security Anomaly Monitor & Account Owner Veto</span>
+        </h2>
+        <p class="card-subtitle" data-i18n="security_subtitle">
+          Detects malicious claim attempts or false liveness triggers. Provides living account owners a 1-click emergency abort veto button.
+        </p>
+
+        <!-- Emergency Owner Veto Card -->
+        <div class="glass-card" style="background: rgba(244, 63, 94, 0.1); border-color: rgba(244, 63, 94, 0.4);">
+          <h3 style="color: var(--accent-rose); margin-bottom: 0.5rem;"><i data-lucide="alert-triangle"></i> Emergency Owner Veto (1-Click Abort)</h3>
+          <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1rem;">If you are alive and received a false claim alert, click below to instantly purge all claim attempts, lock the vault, and log a veto event.</p>
+          <button class="btn btn-danger" onclick="triggerOwnerVeto()">
+            <i data-lucide="shield-off"></i> EXECUTE EMERGENCY OWNER VETO & ABORT CLAIM
+          </button>
+        </div>
+
+        <!-- Anomaly Event Log -->
+        <div class="glass-card">
+          <h4 style="color: var(--accent-amber); margin-bottom: 0.75rem;"><i data-lucide="activity"></i> Active Anomaly Monitoring Log</h4>
+          <div id="anomaly-log-list" style="font-size: 0.9rem; color: var(--text-muted);">
+            No anomalous claim activities currently detected. System operating within normal thresholds.
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script src="/static/js/app.js"></script>
+  <script>
+    lucide.createIcons();
+  </script>
+</body>
+</html>

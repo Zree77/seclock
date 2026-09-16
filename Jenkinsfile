@@ -71,47 +71,66 @@ pipeline {
             }
         }
 
-        stage('ECR Login') {
+        stage('ECR Login & Push') {
             steps {
-                sh '''
-                    aws ecr get-login-password --region ${AWS_REGION} |
-                    docker login \
-                      --username AWS \
-                      --password-stdin ${ECR_REGISTRY}
-                '''
-            }
-        }
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'aws-ecr-credentials',
+                        usernameVariable: 'AWS_ACCESS_KEY_ID',
+                        passwordVariable: 'AWS_SECRET_ACCESS_KEY'
+                    )
+                ]) {
+                    sh '''
+                        export AWS_DEFAULT_REGION=${AWS_REGION}
 
-        stage('Push to ECR') {
-            steps {
-                sh '''
-                    docker push ${IMAGE_NAME}:${IMAGE_TAG}
-                    docker push ${IMAGE_NAME}:latest
-                '''
+                        aws ecr get-login-password \
+                          --region ${AWS_REGION} |
+                        docker login \
+                          --username AWS \
+                          --password-stdin ${ECR_REGISTRY}
+
+                        docker push ${IMAGE_NAME}:${IMAGE_TAG}
+                        docker push ${IMAGE_NAME}:latest
+                    '''
+                }
             }
         }
 
         stage('Update Kubernetes Manifest') {
             steps {
                 sh '''
-                    sed -i "s|image: .*|image: ${IMAGE_NAME}:${IMAGE_TAG}|" k8s/deployment.yaml
+                    sed -i \
+                      "s|image: .*|image: ${IMAGE_NAME}:${IMAGE_TAG}|" \
+                      k8s/deployment.yaml
                 '''
             }
         }
 
-        stage('Commit and Push GitOps Change') {
+        stage('Commit & Push Git Change') {
             steps {
-                sh '''
-                    git config user.name "Jenkins"
-                    git config user.email "jenkins@localhost"
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'github-credentials',
+                        usernameVariable: 'GIT_USERNAME',
+                        passwordVariable: 'GIT_PASSWORD'
+                    )
+                ]) {
+                    sh '''
+                        git config user.name "Jenkins"
+                        git config user.email "jenkins@localhost"
 
-                    git add k8s/deployment.yaml
+                        git add k8s/deployment.yaml
 
-                    git diff --cached --quiet || \
-                    git commit -m "Update SECLOCK image to ${IMAGE_TAG}"
+                        if git diff --cached --quiet; then
+                            echo "No Kubernetes manifest changes."
+                        else
+                            git commit -m "Update SECLOCK image to ${IMAGE_TAG}"
 
-                    git push origin HEAD:${BRANCH_NAME}
-                '''
+                            git push https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/Zree77/seclock.git \
+                              HEAD:${BRANCH_NAME}
+                        fi
+                    '''
+                }
             }
         }
     }

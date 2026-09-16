@@ -21,6 +21,9 @@ pipeline {
 
     stages {
 
+        /*
+         * 1. CHECKOUT
+         */
         stage('Checkout') {
             steps {
                 echo 'Checking out SECLOCK source code...'
@@ -33,13 +36,19 @@ pipeline {
 
                     echo "Commit:"
                     git rev-parse --short HEAD
+
+                    echo "Repository:"
+                    git remote -v
                 '''
             }
         }
 
+        /*
+         * 2. INSTALL PYTHON DEPENDENCIES
+         */
         stage('Install Dependencies') {
             steps {
-                echo 'Creating Python virtual environment...'
+                echo 'Installing SECLOCK application dependencies...'
 
                 sh '''
                     python3 --version
@@ -51,22 +60,30 @@ pipeline {
                     .venv/bin/python -m pip install --upgrade pip
 
                     .venv/bin/pip install -r requirements.txt
-
-                    .venv/bin/pip install pytest
                 '''
             }
         }
 
+        /*
+         * 3. RUN END-TO-END TESTS
+         */
         stage('Run Tests') {
             steps {
-                echo 'Running SECLOCK tests...'
+                echo 'Running SECLOCK end-to-end tests...'
 
                 sh '''
-                    .venv/bin/pytest -v
+                    # Starlette TestClient requires httpx2
+                    .venv/bin/pip install httpx2
+
+                    # test_e2e.py is a standalone test script
+                    .venv/bin/python test_e2e.py
                 '''
             }
         }
 
+        /*
+         * 4. SONARQUBE ANALYSIS
+         */
         stage('SonarQube Analysis') {
             steps {
                 script {
@@ -87,6 +104,9 @@ pipeline {
             }
         }
 
+        /*
+         * 5. BUILD DOCKER IMAGE
+         */
         stage('Docker Build') {
             steps {
                 echo "Building Docker image: ${IMAGE_NAME}:${IMAGE_TAG}"
@@ -99,12 +119,15 @@ pipeline {
                 '''
 
                 sh '''
-                    echo "Docker image created:"
+                    echo "Docker images created:"
                     docker images ${IMAGE_NAME}
                 '''
             }
         }
 
+        /*
+         * 6. LOGIN TO AMAZON ECR
+         */
         stage('ECR Login') {
             steps {
                 echo 'Logging into Amazon ECR...'
@@ -119,7 +142,11 @@ pipeline {
                     sh '''
                         export AWS_DEFAULT_REGION=${AWS_REGION}
 
+                        echo "Checking AWS identity..."
+
                         aws sts get-caller-identity
+
+                        echo "Logging into ECR..."
 
                         aws ecr get-login-password \
                           --region ${AWS_REGION} |
@@ -131,6 +158,9 @@ pipeline {
             }
         }
 
+        /*
+         * 7. PUSH DOCKER IMAGE TO ECR
+         */
         stage('Push Image to ECR') {
             steps {
                 echo "Pushing image ${IMAGE_NAME}:${IMAGE_TAG}"
@@ -143,6 +173,9 @@ pipeline {
             }
         }
 
+        /*
+         * 8. UPDATE KUBERNETES MANIFEST
+         */
         stage('Update Kubernetes Manifest') {
             steps {
                 echo "Updating Kubernetes deployment image to ${IMAGE_TAG}..."
@@ -152,14 +185,20 @@ pipeline {
                       "s|^[[:space:]]*image:.*|          image: ${IMAGE_NAME}:${IMAGE_TAG}|" \
                       k8s/deployment.yaml
 
-                    echo "Deployment image:"
+                    echo "Updated Kubernetes deployment image:"
+
                     grep "image:" k8s/deployment.yaml
                 '''
             }
         }
 
+        /*
+         * 9. COMMIT KUBERNETES CHANGE
+         */
         stage('Commit GitOps Change') {
             steps {
+                echo 'Committing Kubernetes manifest change...'
+
                 sh '''
                     git config user.name "Jenkins"
                     git config user.email "jenkins@localhost"
@@ -176,6 +215,9 @@ pipeline {
             }
         }
 
+        /*
+         * 10. PUSH MANIFEST CHANGE TO GITHUB
+         */
         stage('Push GitOps Change') {
             steps {
                 echo 'Pushing Kubernetes manifest update to GitHub...'
@@ -190,9 +232,14 @@ pipeline {
                     sh '''
                         cat > .git-askpass <<'EOF'
 #!/bin/sh
+
 case "$1" in
-    *Username*) echo "$GIT_USERNAME" ;;
-    *Password*) echo "$GIT_PASSWORD" ;;
+    *Username*)
+        echo "$GIT_USERNAME"
+        ;;
+    *Password*)
+        echo "$GIT_PASSWORD"
+        ;;
 esac
 EOF
 
@@ -210,27 +257,44 @@ EOF
         }
     }
 
+    /*
+     * POST BUILD ACTIONS
+     */
     post {
+
+        /*
+         * ALWAYS RUN
+         */
         always {
             sh '''
+                echo "Cleaning up..."
+
                 docker logout ${ECR_REGISTRY} || true
+
                 rm -rf .venv
+
                 rm -f .git-askpass
             '''
         }
 
+        /*
+         * SUCCESS
+         */
         success {
             echo '''
 ============================================
-SECLOCK CI/CD PIPELINE SUCCESSFUL
+      SECLOCK CI/CD PIPELINE SUCCESSFUL
 ============================================
 
-Tests              : PASSED
+Checkout           : PASSED
+Dependencies       : PASSED
+E2E Tests          : PASSED
 SonarQube          : COMPLETED
 Docker Build       : PASSED
-ECR Push            : PASSED
+ECR Login          : PASSED
+ECR Push           : PASSED
 Kubernetes Update  : PASSED
-Git Push            : PASSED
+Git Push           : PASSED
 
 Argo CD will detect the Git change
 and synchronize SECLOCK to EKS.
@@ -239,13 +303,17 @@ and synchronize SECLOCK to EKS.
 '''
         }
 
+        /*
+         * FAILURE
+         */
         failure {
             echo '''
 ============================================
-SECLOCK CI/CD PIPELINE FAILED
+        SECLOCK CI/CD PIPELINE FAILED
 ============================================
 
-Check the failed stage in the Jenkins console.
+Check the failed stage in the Jenkins
+console output.
 
 ============================================
 '''
